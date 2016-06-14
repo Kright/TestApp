@@ -105,7 +105,8 @@ public class ComputationContext implements iComputationContext {
                             TimeUnit.MILLISECONDS.sleep(1);
                             if (stop) break loop;
                         }
-                    } catch (InterruptedException e) {}
+                    } catch (InterruptedException e) {
+                    }
                 }
 
                 ComputationState resultState = new ComputationState(arr1);
@@ -156,8 +157,10 @@ public class ComputationContext implements iComputationContext {
             ObjectOutputStream oos = new ObjectOutputStream(fos);
 
             synchronized (this) {
-                oos.writeObject(state);
                 oos.writeObject(status);
+                if (!status.isFinished) {
+                    oos.writeObject(state);
+                }
             }
 
             oos.close();
@@ -192,11 +195,15 @@ public class ComputationContext implements iComputationContext {
         try {
             ObjectInputStream ois = new ObjectInputStream(new FileInputStream(save));
 
-            ComputationState state = (ComputationState) ois.readObject();
             ComputationStatus status = (ComputationStatus) ois.readObject();
+            ComputationState state;
+            if (!status.isFinished) {
+                state = (ComputationState) ois.readObject();
+            } else {
+                state = new ComputationState();
+            }
             return new ComputationContext(status, state, service);
-        } catch (IOException e) {
-        } catch (ClassNotFoundException e) {
+        } catch (IOException | ClassNotFoundException | ClassCastException e ) {
         }
 
         log("can't read");
