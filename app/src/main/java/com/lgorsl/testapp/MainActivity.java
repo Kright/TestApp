@@ -167,18 +167,13 @@ public class MainActivity extends Activity {
      */
     private void setProgressUpdate(iComputationContext cntxt) {
         log("set progress update for " + (cntxt.getStatus().computationIsFinished() ? "finished" : "unfinished"));
-        progressUpdater = new ProgressUpdater(pascalComputationService);
+        progressUpdater = new ProgressUpdater();
         progressUpdater.execute(cntxt);
     }
 
     class ProgressUpdater extends AsyncTask<iComputationContext, ComputationStatus, ComputationStatus> {
 
-        private final PascalComputationService service;
         volatile boolean strongCancel = false;  // bugs without this
-
-        ProgressUpdater(PascalComputationService service) {
-            this.service = service;
-        }
 
         @Override
         protected ComputationStatus doInBackground(iComputationContext... params) {
@@ -190,7 +185,7 @@ public class MainActivity extends Activity {
             iComputationContext cntxt = params[0];
             ComputationStatus s = cntxt.getStatus();
 
-            while (service.getComputationContext() == cntxt) {
+            while (true) {
                 ComputationStatus newS = cntxt.getStatus();
                 if (s != newS) {
                     s = newS;
