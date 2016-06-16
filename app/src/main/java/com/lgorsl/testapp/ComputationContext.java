@@ -38,7 +38,7 @@ public class ComputationContext implements iComputationContext {
         return status;
     }
 
-    public synchronized void setStatus(ComputationStatus status) {
+    private synchronized void setStatus(ComputationStatus status) {
         this.status = status;
     }
 
