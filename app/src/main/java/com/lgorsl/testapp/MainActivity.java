@@ -58,11 +58,7 @@ public class MainActivity extends Activity {
             return;
         }
 
-        if (computationTime > 0) {
-            if (progressUpdater!=null){
-                progressUpdater.strongCancel = true;
-                progressUpdater.cancel(true);
-            }
+        if (computationTime > 0 && pascalComputationService != null) {
 
             iComputationContext cntx = pascalComputationService.startNewComputation(computationTime * 1000);
             setProgressUpdate(cntx);
@@ -72,13 +68,11 @@ public class MainActivity extends Activity {
     public void onButtonResetClick(View v) {
         log("resetClick");
 
-        pascalComputationService.resetComputation();
-        fieldInput.setText("");
-
-        if (progressUpdater!=null){
-            progressUpdater.cancel(true);
-            progressUpdater.strongCancel = true;
+        if(pascalComputationService!=null) {
+            pascalComputationService.resetComputation();
         }
+        fieldInput.setText("");
+        removeProgressUpdating();
     }
 
     @Override
@@ -113,14 +107,11 @@ public class MainActivity extends Activity {
     protected void onPause() {
         log("onPause");
 
-        if (progressUpdater != null) {
-            progressUpdater.cancel(true);
-            progressUpdater.strongCancel = true;
-        }
-
-        if(pascalComputationService!=null) {
+        if (pascalComputationService != null) {
             pascalComputationService.setActivityAlive(false);
         }
+
+        removeProgressUpdating();
         unbindService(connection);
         super.onPause();
     }
@@ -155,66 +146,91 @@ public class MainActivity extends Activity {
         public void onServiceDisconnected(ComponentName name) {
             log("service disconnected");
             pascalComputationService = null;
+            removeProgressUpdating();
         }
     };
 
-    private ProgressUpdater progressUpdater;
+    private ProgressUpdater progressUpdater = null;
 
     /**
      * updates progress bar and biggest value while computation running
      *
-     * @param cntxt
+     * @param cntxt - context for observing
      */
     private void setProgressUpdate(iComputationContext cntxt) {
-        log("set progress update for " + (cntxt.getStatus().computationIsFinished() ? "finished" : "unfinished"));
-        progressUpdater = new ProgressUpdater();
-        progressUpdater.execute(cntxt);
+        ComputationStatus st = cntxt.getStatus();
+        log("set progress update for " + (st.computationIsFinished() ? "finished" : "unfinished"));
+        if (st.computationIsFinished()) {
+            setProgress(st);
+        } else {
+            removeProgressUpdating();
+            progressUpdater = new ProgressUpdater();
+            progressUpdater.execute(cntxt);
+        }
     }
 
-    class ProgressUpdater extends AsyncTask<iComputationContext, ComputationStatus, ComputationStatus> {
+    private void removeProgressUpdating() {
+        if (progressUpdater == null) return;
+        progressUpdater.cancel(true);
+        progressUpdater = null;
+    }
 
-        volatile boolean strongCancel = false;  // bugs without this
+    private class ProgressUpdater extends AsyncTask<iComputationContext, ComputationStatus, Void> {
+
+        private void log(String msg) {
+            Log.d("TestApp", "AsynTask: " + msg);
+        }
 
         @Override
-        protected ComputationStatus doInBackground(iComputationContext... params) {
-            log("AsyncTaskStarted");
-            if (params.length != 1) {
-                log("wrong params length : " + params.length);
-                return new ComputationStatus(0, 0, 1, new BigInteger("1"), true);
-            }
-            iComputationContext cntxt = params[0];
-            ComputationStatus s = cntxt.getStatus();
+        protected Void doInBackground(iComputationContext... params) {
+            log("start");
 
-            while (true) {
-                ComputationStatus newS = cntxt.getStatus();
-                if (s != newS) {
-                    s = newS;
-                    publishProgress(s);
-                    if (s.computationIsFinished() || isCancelled() || strongCancel) break;
+            if (isCancelled()) {
+                log("cancelled");
+                return null;
+            }
+
+            if (params.length!=1){
+                log("wring params length = " + params.length);
+                return null;
+            }
+
+            iComputationContext cntxt = params[0];
+            ComputationStatus status = cntxt.getStatus();
+            if (status == null) {
+                log("status == null!");
+                return null;
+            }
+
+            while (!isCancelled()) {
+                ComputationStatus newStatus = cntxt.getStatus();
+                if (newStatus != status) {
+                    status = newStatus;
+                    publishProgress(status);
+                    if (status.isFinished) break;
                 }
+
                 try {
                     TimeUnit.MILLISECONDS.sleep(25);
                 } catch (InterruptedException e) {
+                    log("can't sleep");
                 }
             }
-            log("AsyncTaskFinished");
-            return s;
+
+            log("finish");
+            return null;
         }
 
         @Override
         protected void onProgressUpdate(ComputationStatus... values) {
-            if (strongCancel || isCancelled()) return;
-            ComputationStatus last = values[values.length - 1];
-            MainActivity.this.progressBar.setProgress((int) (progressBar.getMax() * last.getProgress()));
-            MainActivity.this.textView.setText(last.biggestNumber.toString());
+            setProgress(values[values.length - 1]);
+            super.onProgressUpdate(values);
         }
+    }
 
-        @Override
-        protected void onPostExecute(ComputationStatus status) {
-            if (strongCancel || isCancelled()) return;
-            MainActivity.this.progressBar.setProgress((int) (progressBar.getMax() * status.getProgress()));
-            MainActivity.this.textView.setText(status.biggestNumber.toString());
-        }
+    private void setProgress(ComputationStatus status) {
+        textView.setText(status.biggestNumber.toString());
+        progressBar.setProgress((int) (progressBar.getMax() * status.getProgress()));
     }
 
     public static void log(String msg) {
