@@ -68,7 +68,7 @@ public class MainActivity extends Activity {
     public void onButtonResetClick(View v) {
         log("resetClick");
 
-        if(pascalComputationService!=null) {
+        if (pascalComputationService != null) {
             pascalComputationService.resetComputation();
         }
         fieldInput.setText("");
@@ -136,8 +136,7 @@ public class MainActivity extends Activity {
                 ComputationStatus status = cntxt.getStatus();
 
                 fieldInput.setText("" + status.timeForComputationMs / 1000);
-                textView.setText(status.biggestNumber.toString());
-                progressBar.setProgress((int) (progressBar.getMax() * status.getProgress()));
+                setProgress(status);
             }
             setProgressUpdate(cntxt);
         }
@@ -190,8 +189,8 @@ public class MainActivity extends Activity {
                 return null;
             }
 
-            if (params.length!=1){
-                log("wring params length = " + params.length);
+            if (params.length != 1) {
+                log("wrong params length = " + params.length);
                 return null;
             }
 
@@ -224,7 +223,6 @@ public class MainActivity extends Activity {
         @Override
         protected void onProgressUpdate(ComputationStatus... values) {
             setProgress(values[values.length - 1]);
-            super.onProgressUpdate(values);
         }
     }
 
