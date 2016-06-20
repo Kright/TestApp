@@ -2,9 +2,10 @@ package com.lgorsl.testapp;
 
 import android.util.Log;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -154,7 +155,8 @@ public class ComputationContext implements iComputationContext {
 
         try {
             FileOutputStream fos = new FileOutputStream(save);
-            ObjectOutputStream oos = new ObjectOutputStream(fos);
+            BufferedOutputStream bis = new BufferedOutputStream(fos);
+            ObjectOutputStream oos = new ObjectOutputStream(bis);
 
             synchronized (this) {
                 oos.writeObject(status);
@@ -165,9 +167,7 @@ public class ComputationContext implements iComputationContext {
 
             oos.close();
             return true;
-        } catch (FileNotFoundException e) {
-        } catch (IOException e) {
-        }
+        } catch (IOException e) {}
         log("can't save to file");
         save.delete();
         return false;
@@ -193,7 +193,7 @@ public class ComputationContext implements iComputationContext {
         }
 
         try {
-            ObjectInputStream ois = new ObjectInputStream(new FileInputStream(save));
+            ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(save)));
 
             ComputationStatus status = (ComputationStatus) ois.readObject();
             ComputationState state;
